@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Neuron simulator</title>
+<style>
+#container {
+  margin: 0px auto;
+  width: 500px;
+  height: 375px;
+  border: 10px #333 solid;
+}
+
+#videoElement {
+  width: 500px;
+  height: 375px;
+  background-color: #666;
+}
+#canvas {
+  width: 500px;
+  height: 375px;
+  background-color: #eeeeee;
+}
+</style>
+</head>
+<body>
+  <div id="container">
+    <video autoplay="true" id="videoElement"></video>
+    <canvas id="canvas"></canvas>
+    <img id="image" src=""/>
+  </div>
+<script>
+const video = document.querySelector("#videoElement");
+const canvas = document.createElement("canvas");
+var x0 = 200, y0 = 200;
+var w = 40;
+
+if (navigator.mediaDevices.getUserMedia) {
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(function (stream) {
+      video.srcObject = stream;
+      video.play();
+      var canvas = document.querySelector("#canvas");
+      setInterval(function () {process();}, 2000);
+    })
+    .catch(function (err) {
+      console.log("Something went wrong!", err);
+    });
+}
+
+function process() {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+  var img = canvas.getContext("2d").getImageData(0, 0, w, w);
+  console.log(img);
+  var match = 0;
+  var x, y;
+  console.log(img.data[0]);
+  for (var i = 0; i < img.data.length; i += 4) {
+    for (var c = 0; c < 4; c ++) {
+      x = i // 4;
+      y = i % 4;
+      // console.log(i, c, img.data[i+c]);
+      match += img.data[i+c]*rf(x, y, c);
+    }
+  }
+  console.log(match);
+}
+
+function rf(x, y, c) {
+  if (c >= 3) {
+    return 0;
+  }
+  return gaussian(x-20, 4)*gaussian(y-20, 4) - gaussian(x-20, 8)*gaussian(y-20, 8);
+}
+
+function gaussian(x, sg) {
+  return Math.exp(-0.5*x*x/(sg*sg))/sg
+}
+
+function stop(e) {
+  var stream = video.srcObject;
+  var tracks = stream.getTracks();
+
+  for (var i = 0; i < tracks.length; i++) {
+    tracks[i].stop()
+  }
+  video.srcObject = null;
+}
+// TODO: Fix RF, create sounds on spikes
+</script>
+</body>
+</html>
