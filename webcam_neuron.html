@@ -26,12 +26,15 @@
 <body>
   <div id="container">
     <video autoplay="true" id="videoElement"></video>
-    <canvas id="canvas"></canvas>
     <img id="image" src=""/>
   </div>
 <script>
 const video = document.querySelector("#videoElement");
 const canvas = document.createElement("canvas");
+const canvas2 = document.createElement("canvas");
+var audio = null;
+var osc = null;
+var gainNode = null;
 var x0 = 200, y0 = 200;
 var w = 40;
 
@@ -40,8 +43,16 @@ if (navigator.mediaDevices.getUserMedia) {
     .then(function (stream) {
       video.srcObject = stream;
       video.play();
+      audio = new AudioContext();
+      gainNode = audio.createGain();
+      gainNode.gain.value = 0;
+      gainNode.connect(audio.destination);
+      osc = audio.createOscillator();
+      osc.type = 'square';
+      osc.connect(gainNode);
+      osc.start();
       var canvas = document.querySelector("#canvas");
-      setInterval(function () {process();}, 2000);
+      setInterval(function () {process();}, 50);
     })
     .catch(function (err) {
       console.log("Something went wrong!", err);
@@ -52,31 +63,37 @@ function process() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext("2d").drawImage(video, 0, 0);
-  var img = canvas.getContext("2d").getImageData(0, 0, w, w);
-  console.log(img);
+  var img = canvas.getContext("2d").getImageData(100, 100, w, w);
   var match = 0;
-  var x, y;
-  console.log(img.data[0]);
+  var x, y, weight;
+  var j;
   for (var i = 0; i < img.data.length; i += 4) {
-    for (var c = 0; c < 4; c ++) {
-      x = i // 4;
-      y = i % 4;
-      // console.log(i, c, img.data[i+c]);
-      match += img.data[i+c]*rf(x, y, c);
+    var gray = 0;
+    for (var c = 0; c < 3; c ++) {
+      gray += img.data[i+c]
     }
+    j = i / 4;
+    x = Math.floor(j / w);
+    y = j % w;
+    weight = rf(x, y, c);
+    match += 0.001*gray*weight;
   }
-  console.log(match);
+  canvas2.getContext("2d").putImageData(img, 0, 0);
+  document.getElementById("image").src = canvas2.toDataURL('image/png');
+  if (Math.random() < match) {
+    gainNode.gain.value = 1;
+    setTimeout(function () {gainNode.gain.value = 0;}, 5);
+    console.log('spike');
+  }
 }
 
 function rf(x, y, c) {
-  if (c >= 3) {
-    return 0;
-  }
   return gaussian(x-20, 4)*gaussian(y-20, 4) - gaussian(x-20, 8)*gaussian(y-20, 8);
 }
 
 function gaussian(x, sg) {
-  return Math.exp(-0.5*x*x/(sg*sg))/sg
+  var v = Math.exp(-0.5*x*x/(sg*sg))/sg
+  return v;
 }
 
 function stop(e) {
@@ -87,8 +104,9 @@ function stop(e) {
     tracks[i].stop()
   }
   video.srcObject = null;
+  osc.stop();
+  osc.disconnect();
 }
-// TODO: Fix RF, create sounds on spikes
 </script>
 </body>
 </html>
